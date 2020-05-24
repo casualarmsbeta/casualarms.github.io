@@ -2,168 +2,274 @@
 ---
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8">
     <title>Profile Creator - Casual ARMS</title>
     {% include meta_tags.html %}
     <link rel="stylesheet" href="/assets/style.css">
 
     <style>
-      #container {
-	  text-align: center;
-      }
+    #container {
+        text-align: center;
+    }
 
-      #command-output-container {
-	  text-align: center;
-      }
+    #info-container table {
+        width: 100%;
+    }
+
+    #info-container td {
+        width: 50%;
+    }
+
+    #info-container .label {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    #info-container .data {
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    #info-container .data select {
+        width: 12em;
+    }
+
+    #info-container .friend-code {
+        font-size: 0.7em;
+    }
+
+    #command-output-container {
+        text-align: center;
+    }
     </style>
 
     <script type="text/javascript" src="/script/arms-data.js"></script>
 
     <script type="text/javascript">
-      /*
-       * FIXME: copypasta'd this from the randomizer... probably ought to
-       * arrange for both places to share a single source...
-       */
-      function makeID(text) {
-	  return text.replace(/[\[\]\&\s\.]/g, '').toLowerCase();
-      }
+    /*
+     * FIXME: copypasta'd this from the randomizer... probably ought to
+     * arrange for both places to share a single source...
+     */
+    function makeID(text)
+    {
+        return text.replace(/[\[\]\&\s\.]/g, '').toLowerCase();
+    }
 
-      /* FIXME: minimal error checking! */
-      function fillFormFromHistory()
-      {
-	  var rawHistory = document.getElementById("history-input").value;
-	  var history = JSON.parse(rawHistory);
+    /* FIXME: minimal error checking! */
+    function fillFormFromRawInput()
+    {
+        var rawInput = document.getElementById("raw-input").value;
+        var inputJson = JSON.parse(rawInput);
 
-	  /* Handle friend-code specially */
-	  var fcMatch = history["fc"].match(/(\d{4})-(\d{4})-(\d{4})/);
+        /* Handle friend-code specially */
+        var fcMatch = inputJson["fc"].match(/(\d{4})-(\d{4})-(\d{4})/);
 
-	  if (fcMatch)
-	      for (var i = 1; i < 4; i++)
-		  document.getElementById("friend-code-" + i).value = fcMatch[i];
+        if (fcMatch)
+            for (var i = 1; i < 4; i++)
+                document.getElementById("friend-code-" + i).value = fcMatch[i];
 
-	  delete history["fc"];
+        delete inputJson["fc"];
 
-	  for (const key in history)
-	      document.getElementById(key).value = history[key];
-      }
+        for (const key in inputJson)
+            document.getElementById(key).value = inputJson[key];
+    }
 
-      function generateCommandOutput()
-      {
-	  var output = {};
+    function generateCommandOutput()
+    {
+        var output = {};
 
-	  Array.from(document.getElementsByTagName("input")).map(
-	      function (x) {
-		  output[x.id] = x.value;
-	      }
-	  );
+        Array.from(document.getElementsByTagName("input")).map(
+            function (x) {
+                output[x.id] = x.value;
+            }
+        );
 
-	  Array.from(document.getElementsByTagName("select")).map(
-	      function (x) {
-		  output[x.id] = x.value;
-	      }
-	  );
+        Array.from(document.getElementsByTagName("select")).map(
+            function (x) {
+                output[x.id] = x.value;
+            }
+        );
 
-	  output["one-liner"] = document.getElementById("one-liner").value;
+        output["fc"] = output["friend-code-1"] +
+            "-" + output["friend-code-2"] +
+            "-" + output["friend-code-3"];
 
-	  output["fc"] = output["friend-code-1"] +
-	      "-" + output["friend-code-2"] +
-	      "-" + output["friend-code-3"];
+        delete output["friend-code-1"];
+        delete output["friend-code-2"];
+        delete output["friend-code-3"];
 
-	  delete output["friend-code-1"];
-	  delete output["friend-code-2"];
-	  delete output["friend-code-3"];
+        document.getElementById("command-output").value = "!profile-update " + JSON.stringify(output);
 
-	  document.getElementById("command-output").value = "!profile-update " + JSON.stringify(output);
+        return JSON.stringify(output);
+    }
 
-	  return JSON.stringify(output);
-      }
+    function generateCharacterSelectors()
+    {
+        var armsMainSelector = document.getElementById("arms-main");
 
-      function generateCharacterSelectors()
-      {
-	  var armsMainSelector = document.getElementById("arms-main");
+        armsMainSelector.innerHTML = "<option value=\"none\">---</option>";
 
-	  armsMainSelector.innerHTML = "<option value=\"none\">---</option>";
+        fighterStats.forEach(
+            function (value, _, _) {
+                fighter = value[0];
+                armsMainSelector.innerHTML += "<option value=\"" +
+                    makeID(fighter) + "\">" + fighter + "</option>";
+            }
+        );
 
-	  fighterStats.forEach(
-	      function (value, _, _) {
-		  fighter = value[0];
-		  armsMainSelector.innerHTML += "<option value=\"" +
-		      makeID(fighter) + "\">" + fighter + "</option>";
-	      }
-	  );
+        var armsSecondarySelector = document.getElementById("arms-secondary");
 
-	  var armsSecondarySelector = document.getElementById("arms-secondary");
+        armsSecondarySelector.innerHTML = "<option value=\"none\">---</option>";
 
-	  armsSecondarySelector.innerHTML = "<option value=\"none\">---</option>";
+        fighterStats.forEach(
+            function (value, _, _) {
+                fighter = value[0];
+                armsSecondarySelector.innerHTML += "<option value=\"" +
+                    makeID(fighter) + "\">" + fighter + "</option>";
+            }
+        );
+    }
 
-	  fighterStats.forEach(
-	      function (value, _, _) {
-		  fighter = value[0];
-		  armsSecondarySelector.innerHTML += "<option value=\"" +
-		      makeID(fighter) + "\">" + fighter + "</option>";
-	      }
-	  );
-      }
+    function changeMode(mode)
+    {
+        // update button styles
+        var buttons = document.getElementsByClassName("mode");
+        for (var i = 0; i < buttons.length; ++i)
+        {
+            buttons[i].className = "mode";
+        }
+        document.getElementById("btn-" + mode).className += " active-mode";
 
-      function pageload()
-      {
-	  generateCharacterSelectors();
-      }
+        switch (mode)
+        {
+            case "startfromscratch":
+                putInStartFromScratchMode();
+                break;
+            default:
+                putInEditExistingMode();
+                break;
+        }
+    }
+
+    function putInStartFromScratchMode()
+    {
+        document.getElementById("raw-container").style.display = "none";
+        document.getElementById("info-heading").innerHTML = "1. Enter Your Info";
+        document.getElementById("output-heading").innerHTML = "2. Paste To Discord";
+    }
+
+    function putInEditExistingMode()
+    {
+        document.getElementById("raw-container").style.display = "block";
+        document.getElementById("info-heading").innerHTML = "2. Edit Your Info";
+        document.getElementById("output-heading").innerHTML = "3. Paste To Discord";
+    }
+
+    function pageload()
+    {
+        generateCharacterSelectors();
+
+        switch (window.location.hash.substring(1))
+        {
+            case "editexisting":
+                changeMode("editexisting");
+                break;
+            default:
+                changeMode("startfromscratch");
+                break;
+        }
+    }
     </script>
-  </head>
-  <body onload="pageload();">
-    <h1>Casual ARMS Profile Creator</h1>
+</head>
+<body onload="pageload();">
+    <h1><a href="/">Casual ARMS</a></h1>
+    {% include navbar.html %}
     <div id="container">
-      <div id="history-input-container" style="white-space: pre-line">
-	Paste the data Itembot gave you here:
-	<textarea id="history-input" cols="80" rows="10"></textarea>
-	<button type="button" onclick="fillFormFromHistory();">Fill Form From Data</button>
-      </div>
+        <h2>Profile Creator</h2>
 
-      <span id="full-name-container">
-	<label for="full-name">Name:</label>
-	<input type="text" id="full-name">
-      </span>
-      <span id="switch-name-container">
-	<label for="switch-name">Switch Name:</label>
-	<input type="text" id="switch-name">
-      </span>
+        <p id="mode-selector">
+            <em class="mode" id="btn-startfromscratch" onclick="changeMode('startfromscratch');">Start from Scratch</em>
+            <em class="mode" id="btn-editexisting" onclick="changeMode('editexisting');">Edit Existing</em>
+        </p>
 
-      <div id="fc-container">
-	<label>Friend Code:</label>
-	SW-
-	<input id="friend-code-1" type="tel" pattern="\d{4}" maxlength="4" size="4">
-	-
-	<input id="friend-code-2" type="tel" pattern="\d{4}" maxlength="4" size="4">
-	-
-	<input id="friend-code-3" type="tel" pattern="\d{4}" maxlength="4" size="4">
-      </div>
+        <div id="raw-container">
+            <h3 id="raw-heading">1. Paste From Discord</h3>
+            <p>
+                Run <em>this command TBD</em> in Discord and paste the output here:
+            </p>
+            <textarea id="raw-input" cols="70" rows="5" onkeyup="fillFormFromRawInput();"></textarea>
+        </div>
 
-      <span id="arms-main-container">
-	<label for="arms-main">ARMS Main:</label>
-	<select id="arms-main">
-	  <!-- Generated by JavaScript -->
-	</select>
-      </span>
+        <h3 id="info-heading"></h3>
+        <div id="info-container">
+            <table>
+                <tr>
+                    <td class="label">
+                        <label for="full-name"><em>Name</em></label>
+                    </td>
+                    <td class="data">
+                        <input type="text" id="full-name" onkeyup="generateCommandOutput();" />
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">
+                        <label for="switch-name"><em>Switch Name</em></label>
+                    </td>
+                    <td class="data">
+                        <input type="text" id="switch-name" onkeyup="generateCommandOutput();" />
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">
+                        <label><em>Friend Code</em></label>
+                    </td>
+                    <td class="data friend-code">
+                        <span>SW-</span>
+                        <input id="friend-code-1" type="tel" pattern="\d{4}" maxlength="4" size="1" onkeyup="generateCommandOutput();" />
+                        <span>-</span>
+                        <input id="friend-code-2" type="tel" pattern="\d{4}" maxlength="4" size="1" onkeyup="generateCommandOutput();" />
+                        <span>-</span>
+                        <input id="friend-code-3" type="tel" pattern="\d{4}" maxlength="4" size="1" onkeyup="generateCommandOutput();" />
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">
+                        <label for="arms-main"><em>ARMS Main</em></label>
+                    </td>
+                    <td class="data">
+                        <select id="arms-main" onchange="generateCommandOutput();">
+                            <!-- Generated by JavaScript -->
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">
+                        <label for="arms-secondary"><em>ARMS Secondary</em></label>
+                    </td>
+                    <td class="data">
+                        <select id="arms-secondary" onchange="generateCommandOutput();">
+                            <!-- Generated by JavaScript -->
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">
+                        <label for="one-liner"><em>Blurb</em></label>
+                    </td>
+                    <td class="data">
+                        <!-- TODO: What is the max length for the one-liner? -->
+                        <input type="text" id="one-liner" onkeyup="generateCommandOutput();" />
+                    </td>
+                </tr>
+            </table>
+        </div>
 
-      <span id="arms-secondary-container">
-	<label for="arms-secondary">ARMS Secondary:</label>
-	<select id="arms-secondary">
-	  <!-- Generated by JavaScript -->
-	</select>
-      </span>
-
-      <div id="one-liner-container">
-	<label for="one-liner">One liner/saying:</label>
-	<textarea id="one-liner" cols="40" rows="2"></textarea>
-      </div>
-
-      <div id="command-output-container" style="white-space: pre-line">
-	<button type="button" onclick="generateCommandOutput();">Generate Command Output</button>
-	Send this command to Itembot:
-	<textarea id="command-output" cols="80" rows="10" readonly></textarea>
-      </div>
+        <h3 id="output-heading"></h3>
+        <div id="command-output-container">
+            <textarea id="command-output" cols="70" rows="5" readonly></textarea>
+        </div>
+        {% include footer.html %}
     </div>
-  </body>
+</body>
 </html>
